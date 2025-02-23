@@ -1,71 +1,79 @@
 import { useState, useEffect } from "react";
-import { ethers } from "ethers";
-import EvidenceStorage from "./EvidenceStorage.json"; // Ensure ABI is available
-
-const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 
 function App() {
     const [evidences, setEvidences] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const fetchAllEvidence = async () => {
+        setLoading(true);
+        setError(null);
+
         try {
-            // Check if Metamask is installed
-            if (!window.ethereum) {
-                alert("Metamask is not installed! Please install it to use this application.");
-                console.error("Metamask is not installed.");
-                return;
-            }
-    
-            // Request Metamask connection
-            await window.ethereum.request({ method: "eth_requestAccounts" });
-    
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, EvidenceStorage.abi, provider);
-    
-            const evidenceCount = await contract.evidenceCount();
-            console.log("Total Evidence Count:", evidenceCount.toString());
-    
-            if (evidenceCount.toString() === "0") {
-                console.warn("No evidence found in the contract.");
-                return;
-            }
-    
-            const fetchedEvidences = [];
-            for (let i = 1; i <= evidenceCount; i++) {
-                const evidence = await contract.getEvidence(i);
-                console.log(`Evidence ${i}:`, evidence);
-    
-                fetchedEvidences.push({
-                    id: evidence.id.toString(),
-                    imageHash: evidence.imageHash,
+            const response = await fetch("http://localhost:5000/evidences"); // Fetch from backend
+            if (!response.ok) throw new Error("Failed to fetch evidence.");
+
+            const fetchedEvidences = await response.json();
+
+            // Filter only valid IPFS hashes
+            const validEvidences = fetchedEvidences
+                .filter(evidence => evidence.description)
+                .map(evidence => ({
+                    id: evidence.id,
+                    imageUrl: `https://gateway.pinata.cloud/ipfs/${evidence.description}`, // Corrected URL
                     description: evidence.description,
-                    uploader: evidence.uploader,
-                });
-            }
-    
-            setEvidences(fetchedEvidences);
+                }));
+
+            setEvidences(validEvidences);
         } catch (error) {
-            console.error("Error retrieving evidence:", error);
+            console.error("Error fetching evidence:", error);
+            setError("Failed to fetch evidence.");
+        } finally {
+            setLoading(false);
         }
     };
-    
 
     useEffect(() => {
-        fetchAllEvidence();
+        fetchAllEvidence(); // Fetch once on mount
+
+        const interval = setInterval(() => {
+            fetchAllEvidence();
+        }, 20000);
+
+        return () => clearInterval(interval); // Cleanup on unmount
     }, []);
 
     return (
-        <div>
+        <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
             <h2>Stored Evidence</h2>
-            {evidences.length > 0 ? (
+            <button onClick={fetchAllEvidence} disabled={loading} style={{ marginBottom: "10px" }}>
+                {loading ? "Refreshing..." : "Refresh Evidence"}
+            </button>
+
+            {loading ? (
+                <p>Loading evidence...</p>
+            ) : error ? (
+                <p style={{ color: "red" }}>{error}</p>
+            ) : evidences.length > 0 ? (
                 evidences.map((evidence) => (
-                    <div key={evidence.id}>
-                        <p><strong>IPFS Hash:</strong> {evidence.imageHash}</p>
-                        <img src={`https://bronze-tropical-lark-419.mypinata.cloud/ipfs/${evidence.imageHash}?pinataGatewayToken=rp3Mf9ZGsbNu9N9D2pEhZOnVnsHP3ZM2L7nFJTPJ-km3wibO95GrgKW3OtxqZCQF`} alt="Evidence" width="300" />
+                    <div key={evidence.id} style={{ marginBottom: "20px", borderBottom: "1px solid #ddd", paddingBottom: "10px" }}>
+                        <p><strong>Event Name:</strong> </p>
+                        <img
+                            src={evidence.imageUrl}
+                            alt="Evidence"
+                            width="300"
+                            onError={(e) => {
+                                console.warn(`Image not found: ${evidence.imageUrl}`);
+                                e.target.src = "https://via.placeholder.com/300?text=Image+Not+Found";
+                            }}
+                            style={{ display: "block", marginBottom: "5px" }}
+                        />
+                        <p>IPFS Hash: {evidence.description}</p>
+                        <p><strong>Timestamp:</strong> Date</p>
                     </div>
                 ))
             ) : (
-                <p>No evidence stored yet.</p>
+                <p>No valid evidence stored yet.</p>
             )}
         </div>
     );
