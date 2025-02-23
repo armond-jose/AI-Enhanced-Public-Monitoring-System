@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import ReactPlayer from "react-player";
 
 function App() {
     const [evidences, setEvidences] = useState([]);
@@ -15,16 +16,20 @@ function App() {
 
             const fetchedEvidences = await response.json();
 
-            // Filter only valid IPFS hashes
-            const validEvidences = fetchedEvidences
+            // Filter only valid IPFS hashes and remove duplicates
+            const uniqueEvidences = Array.from(new Map(fetchedEvidences
                 .filter(evidence => evidence.description)
-                .map(evidence => ({
+                .map(evidence => [evidence.description, {
                     id: evidence.id,
-                    imageUrl: `https://gateway.pinata.cloud/ipfs/${evidence.description}`, // Corrected URL
+                    videoUrl: `https://bronze-tropical-lark-419.mypinata.cloud/ipfs/${evidence.description}?pinataGatewayToken=rp3Mf9ZGsbNu9N9D2pEhZOnVnsHP3ZM2L7nFJTPJ-km3wibO95GrgKW3OtxqZCQF`,
                     description: evidence.description,
-                }));
+                }])
+            ).values());
 
-            setEvidences(validEvidences);
+            // Sort in descending order based on id
+            uniqueEvidences.sort((a, b) => b.id - a.id);
+
+            setEvidences(uniqueEvidences);
         } catch (error) {
             console.error("Error fetching evidence:", error);
             setError("Failed to fetch evidence.");
@@ -57,17 +62,19 @@ function App() {
             ) : evidences.length > 0 ? (
                 evidences.map((evidence) => (
                     <div key={evidence.id} style={{ marginBottom: "20px", borderBottom: "1px solid #ddd", paddingBottom: "10px" }}>
-                        <p><strong>Event Name:</strong> </p>
-                        <img
-                            src={evidence.imageUrl}
-                            alt="Evidence"
-                            width="300"
+                        <p><strong>Event Name:</strong></p>
+
+                        <ReactPlayer
+                            url={evidence.videoUrl}
+                            width="300px"
+                            height="200px"
+                            controls
+                            fallback={<p>Video loading...</p>}
                             onError={(e) => {
-                                console.warn(`Image not found: ${evidence.imageUrl}`);
-                                e.target.src = "https://via.placeholder.com/300?text=Image+Not+Found";
+                                console.warn(`Video not found: ${evidence.videoUrl}`);
                             }}
-                            style={{ display: "block", marginBottom: "5px" }}
                         />
+
                         <p>IPFS Hash: {evidence.description}</p>
                         <p><strong>Timestamp:</strong> Date</p>
                     </div>

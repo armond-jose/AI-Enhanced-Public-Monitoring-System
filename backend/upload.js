@@ -12,21 +12,21 @@ const contract = new ethers.Contract(CONTRACT_ADDRESS, EvidenceStorage.abi, wall
 
 function isValidIPFSHash(hash) {
     // IPFS CIDv0 starts with "Qm" and CIDv1 is base58-encoded
-    return typeof hash === "string" && hash.length >= 46 && hash.startsWith("Qm");
+    return hash.length >= 5;
 }
 
-async function uploadToIPFS(imagePath) {
-    console.log("Uploading file:", imagePath);
+async function uploadToIPFS(videoPath) {
+    console.log("Uploading file:", videoPath);
 
-    if (!fs.existsSync(imagePath)) {
+    if (!fs.existsSync(videoPath)) {
         console.error("❌ File does not exist!");
         return;
     }
 
     const formData = new FormData();
-    formData.append("file", fs.createReadStream(imagePath));
+    formData.append("file", fs.createReadStream(videoPath));
 
-    const pinataMetadata = JSON.stringify({ name: "evidence_image" });
+    const pinataMetadata = JSON.stringify({ name: "evidence_video" });
     formData.append("pinataMetadata", pinataMetadata);
 
     const pinataOptions = JSON.stringify({ cidVersion: 0 });
