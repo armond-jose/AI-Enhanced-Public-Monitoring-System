@@ -1,6 +1,7 @@
 require("dotenv").config();
 const axios = require("axios");
 const fs = require("fs");
+const path = require("path"); // Add this line to use the path module
 const FormData = require("form-data");
 const { ethers } = require("ethers");
 const EvidenceStorage = require("../artifacts/contracts/EvStorage.sol/EvidenceStorage.json");
@@ -10,8 +11,7 @@ const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
 const contract = new ethers.Contract(CONTRACT_ADDRESS, EvidenceStorage.abi, wallet);
 
-function isValidIPFSHash(hash) {
-    // IPFS CIDv0 starts with "Qm" and CIDv1 is base58-encoded
+function isValidIPFSHash(hash) {    
     return hash.length >= 5;
 }
 
@@ -26,7 +26,11 @@ async function uploadToIPFS(videoPath) {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(videoPath));
 
-    const pinataMetadata = JSON.stringify({ name: "evidence_video" });
+    // Extract the file name from the videoPath
+    const fileName = path.basename(videoPath);
+
+    // Use the original file name in the pinataMetadata
+    const pinataMetadata = JSON.stringify({ name: fileName });
     formData.append("pinataMetadata", pinataMetadata);
 
     const pinataOptions = JSON.stringify({ cidVersion: 0 });
@@ -51,7 +55,7 @@ async function uploadToIPFS(videoPath) {
 
         // 🚀 Only store if a valid IPFS hash exists
         if (isValidIPFSHash(ipfsHash)) {
-            await storeInBlockchain(ipfsHash);
+            await storeInBlockchain(ipfsHash, fileName); // Pass both IPFS hash and file name
         } else {
             console.log("⚠️ Invalid IPFS hash, skipping blockchain storage.");
         }
@@ -62,17 +66,21 @@ async function uploadToIPFS(videoPath) {
     }
 }
 
-// 🛠 Store ONLY valid IPFS hashes in the blockchain
-async function storeInBlockchain(ipfsHash) {
+// 🛠 Store both IPFS hash and file name in the blockchain
+async function storeInBlockchain(ipfsHash, fileName) {
     try {
         if (!process.env.PRIVATE_KEY) {
             console.error("❌ PRIVATE_KEY not found in .env");
             return;
         }
 
-        const tx = await contract.storeEvidence(ipfsHash);
+        const tx = await contract.storeEvidence(ipfsHash, fileName);
         console.log("⏳ Storing in blockchain...");
-        await tx.wait();
+
+        // Wait for the transaction to be mined
+        const receipt = await tx.wait();
+        console.log("✅ Transaction mined. Block number:", receipt.blockNumber);
+
         console.log("✅ Evidence stored successfully in smart contract!");
     } catch (error) {
         console.error("❌ Blockchain Storage Error:", error);
@@ -80,4 +88,4 @@ async function storeInBlockchain(ipfsHash) {
 }
 
 // Run Upload + Store
-uploadToIPFS("./test.mp4").then(ipfsHash => console.log("Stored Hash:", ipfsHash));
+uploadToIPFS("./ACCIDENT_11.920361_75.378466_20250313_040653.mp4").then(ipfsHash => console.log("Stored Hash:", ipfsHash));

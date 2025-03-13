@@ -4,24 +4,27 @@ pragma solidity ^0.8.19;
 contract EvidenceStorage {
     struct Evidence {
         uint256 id;
-        string description;
+        string ipfsHash; // Store IPFS hash
+        string fileName; // Store file name
     }
 
     mapping(uint256 => Evidence) public evidences;
     uint256 public evidenceCount;
     Evidence[] public allEvidences; // New array to store all evidence
 
-    event EvidenceStored(uint256 id, string description);
+    event EvidenceStored(uint256 id, string ipfsHash, string fileName);
 
-    function storeEvidence( string memory _description) public {
-        evidenceCount++;
-        Evidence memory newEvidence = Evidence(evidenceCount, _description);
-        evidences[evidenceCount] = newEvidence;
-        allEvidences.push(newEvidence); // Store in array for retrieval
+    // Store both IPFS hash and file name
+   function storeEvidence(string memory _ipfsHash, string memory _fileName) public {
+    Evidence memory newEvidence = Evidence(evidenceCount, _ipfsHash, _fileName);
+    evidences[evidenceCount] = newEvidence;
+    allEvidences.push(newEvidence);
 
-        emit EvidenceStored(evidenceCount, _description);
-    }
+    emit EvidenceStored(evidenceCount, _ipfsHash, _fileName);
+    evidenceCount++; // Increment after storing
+}
 
+    // Retrieve all evidences
     function getAllEvidences() public view returns (Evidence[] memory) {
         return allEvidences;
     }

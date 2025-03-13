@@ -27,11 +27,12 @@ function toSerializable(obj) {
 // Store evidence
 app.post("/store", async (req, res) => {
     try {
-        const {  description } = req.body;
-        if ( !description) {
-            return res.status(400).json({ error: "Missing ipfs hash description" });
+        const { ipfsHash, fileName } = req.body;
+        if (!ipfsHash || !fileName) {
+            return res.status(400).json({ error: "Missing IPFS hash or file name" });
         }
-        const tx = await contract.storeEvidence( description);
+
+        const tx = await contract.storeEvidence(ipfsHash, fileName); // Pass both IPFS hash and file name
         await tx.wait();
         res.json({ success: true, txHash: tx.hash });
     } catch (error) {
@@ -54,7 +55,8 @@ app.get("/evidence/:id", async (req, res) => {
         res.json(
             toSerializable({
                 id: evidenceId,
-                description: evidence[1],
+                ipfsHash: evidence[1], // IPFS hash
+                fileName: evidence[2], // File name
             })
         );
     } catch (error) {
@@ -67,6 +69,7 @@ app.get("/evidence/:id", async (req, res) => {
 app.get("/evidences", async (req, res) => {
     try {
         const evidenceCount = await contract.evidenceCount();
+        // console.log("Total Evidence Count:", evidenceCount.toString());
 
         if (evidenceCount.toString() === "0") {
             return res.json([]);
@@ -78,9 +81,12 @@ app.get("/evidences", async (req, res) => {
         }
 
         const evidences = await Promise.all(evidencePromises);
+        // console.log("Fetched Evidences:", evidences);
+
         const formattedEvidences = evidences.map((evidence, index) => ({
             id: index,
-            description: evidence[1],
+            ipfsHash: evidence.ipfsHash || "", // Handle empty values
+            fileName: evidence.fileName || "", // Handle empty values
         }));
 
         res.json(toSerializable(formattedEvidences));
