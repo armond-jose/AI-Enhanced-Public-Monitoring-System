@@ -98,6 +98,9 @@ function App() {
         }
     };
 
+    // Reverse the order of evidences for display
+    const reversedEvidences = [...evidences].reverse();
+
     return (
         <div className="app-container">
             <header className="header">
@@ -135,7 +138,7 @@ function App() {
                 <div className="error">{error}</div>
             ) : evidences.length > 0 ? (
                 <div className="evidence-grid">
-                    {evidences.map((evidence) => (
+                    {reversedEvidences.map((evidence) => (
                         <div key={evidence.ipfsHash} id={evidence.ipfsHash} className="evidence-card">
                             <div className="card-header">
                                 <h3>{evidence.eventName}</h3>
